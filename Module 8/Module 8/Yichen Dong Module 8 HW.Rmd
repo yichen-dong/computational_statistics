@@ -1,0 +1,133 @@
+---
+title: "Yichen Dong Module 8 HW"
+author: "Yichen Dong"
+date: "October 25, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+## Problem 1
+
+### Part A
+```{r}
+CV_X = scan("CV_X.txt")
+CV_Y = scan("CV_Y.txt")
+mean_CV = mean(CV_X)
+mean_CV
+```
+
+Our MLE for mu is the mean of the dataset, or .1734. This means that we have a normal pdf 1/sqrt(4\*pi)\*exp^(-(x-.1734)^2/4)
+```{r}
+CV = as.data.frame(cbind(CV_X,CV_Y))
+CV = CV %>%
+  mutate(normal = dnorm(CV_X,mean_CV,sqrt(2)))%>%
+  mutate(error = abs(CV_Y-normal))
+plot(CV_X,CV_Y)
+points(CV_X,CV$normal,col = "red")
+```
+Here we have the points of the data along with the predicted values based on a N(.1734,2) distribution.
+```{r}
+sum(CV$error)/length(CV$CV_X)
+```
+This is our apparent error. 
+
+### Part B and C
+```{r}
+CV = CV %>%
+  mutate(group = floor((as.numeric(rownames(CV))-1)/50))
+mean_CV0 = mean(CV$CV_X[CV$group == 0])
+mean_CV1 = mean(CV$CV_X[CV$group == 1])
+CV = CV %>%
+  mutate(norm_group_0 = dnorm(CV_X,mean_CV1,sqrt(2))
+         ,norm_group_1 = dnorm(CV_X,mean_CV0,sqrt(2)))
+CV = CV%>%
+  mutate(error_0 = ifelse(group == 0, abs(CV_Y - norm_group_0),0)
+         ,error_1 = ifelse(group == 1, abs(CV_Y - norm_group_1),0)) 
+(sum(CV$error_0)+sum(CV$error_1))/length(CV$CV_X)
+```
+This is our cross validated error using two halves of the dataset. As we can see, our second value was larger than the first. This means that our apparent error likely underpredicted the actual error that would appear. By using balnced half sampling, we are able to get closer to the true error that would occur with fitting the data. 
+
+## Problem 2
+
+## Problem 3
+
+### Part b
+```{r}
+jackknife = scan("Jackknife.txt")
+jackknife = as.data.frame(jackknife)
+jack_mean = mean(jackknife$jackknife)
+b2 = sum((jackknife$jackknife -jack_mean)^4)/sum((jackknife$jackknife -jack_mean)^2)^2
+
+k=5
+groups = length(jackknife$jackknife)/k
+jack_group = rep(1:groups,each =k)
+jackknife= cbind.data.frame(jackknife,jack_group)
+T_minus_j = NULL
+
+for(i in 1:groups){
+  jk_minus_j = jackknife$jackknife[jackknife$jack_group != i]
+  jk_minus_j_mean = mean(jk_minus_j)
+  T_minus_j[i] = sum((jk_minus_j -jk_minus_j_mean)^4)/sum((jk_minus_j -jk_minus_j_mean)^2)^2
+}
+
+T_bar_dot = mean(T_minus_j)
+J_T = groups*b2 - (groups-1)*T_bar_dot
+
+jk_var = (groups-1)/groups * sum((T_minus_j - T_bar_dot)^2)
+paste("Values for k=",k,"; b2:",round(b2,4),", J_T:",round(J_T,6),", T_bar_dot:",round(T_bar_dot,4),"SD", round(sqrt(jk_var),4))
+```
+
+```{r}
+k=1
+groups = length(jackknife$jackknife)/k
+jack_group = rep(1:groups,each =k)
+jackknife= cbind.data.frame(jackknife,jack_group)
+T_minus_j = NULL
+
+for(i in 1:groups){
+  jk_minus_j = jackknife$jackknife[jackknife$jack_group != i]
+  jk_minus_j_mean = mean(jk_minus_j)
+  T_minus_j[i] = sum((jk_minus_j -jk_minus_j_mean)^4)/sum((jk_minus_j -jk_minus_j_mean)^2)^2
+}
+
+T_bar_dot = mean(T_minus_j)
+J_T = groups*b2 - (groups-1)*T_bar_dot
+
+jk_var = (groups-1)/groups * sum((T_minus_j - T_bar_dot)^2)
+paste("Values for k=",k,"; b2:",round(b2,4),", J_T:",round(J_T,6),", T_bar_dot:",round(T_bar_dot,4),"SD", round(sqrt(jk_var),4))
+```
+### Part C
+```{r}
+for(iter in 1:10){
+  k=1
+  norm_rand_1 = as.data.frame(rnorm(100,1,sqrt(2)))
+  colnames(norm_rand_1) = c("jackknife")
+  groups = length(norm_rand_1$jackknife)/k
+  jack_group = rep(1:groups,each =k)
+  jackknife= cbind.data.frame(norm_rand_1,jack_group)
+  jack_mean = mean(norm_rand_1$jackknife)
+  b2 = sum((norm_rand_1$jackknife -jack_mean)^4)/sum((norm_rand_1$jackknife -jack_mean)^2)^2
+  
+  T_minus_j = NULL
+  
+  for(i in 1:groups){
+    jk_minus_j = jackknife$jackknife[jackknife$jack_group != i]
+    jk_minus_j_mean = mean(jk_minus_j)
+    T_minus_j[i] = sum((jk_minus_j -jk_minus_j_mean)^4)/sum((jk_minus_j -jk_minus_j_mean)^2)^2
+  }
+  
+  T_bar_dot = mean(T_minus_j)
+  J_T = groups*b2 - (groups-1)*T_bar_dot
+  
+  jk_var = (groups-1)/groups * sum((T_minus_j - T_bar_dot)^2)
+  
+  print(paste("Values for k=",k,"; b2:",round(b2,4),", J_T:",round(J_T,6),", T_bar_dot:",round(T_bar_dot,4),"SD", round(sqrt(jk_var),4)))
+}
+```
+It seems that T_bar_dot is always close to b2, but always slightly higher. J_T is usually close to 0, as well as the standard deviation. 

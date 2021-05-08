@@ -1,0 +1,48 @@
+---
+title: "HW10"
+author: "Yichen Dong"
+date: "November 8, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 4b
+
+```{r}
+library(dplyr)
+ortho = scan("Orthogonal.txt")
+q1 = function(x){1}
+q2 = function(x){x}
+q3 = function(x){2*x^2-1}
+q4 = function(x){4*x^3-3*x}
+g_x = function(x){dnorm(x,0,.3)}
+n = length(ortho)
+
+c_1 = 1/n*sum(q1(ortho)*g_x(ortho))
+c_2 = 1/n*sum(q2(ortho)*g_x(ortho))
+c_3 = 1/n*sum(q3(ortho)*g_x(ortho))
+c_4 = 1/n*sum(q4(ortho)*g_x(ortho))
+
+c_1
+c_2
+c_3
+c_4
+sum(c_1*q1(ortho))
+sum(c_2*q2(ortho))
+sum(c_3*q3(ortho))
+sum(c_4*q4(ortho))
+
+f_hat_x = function(x){.0004*x^3+1.4*x^2-.00029*x-.699059}
+ortho = as.data.frame(ortho)
+ortho = ortho %>%
+  mutate(f_hat = f_hat_x(ortho),
+         dnorm = dnorm(ortho,0,.3))
+```
+
+I definitely don't think I did this right. I might have misunderstood what q(x) meant or what g(x) is supposed to be, because my answers do not make any sense whatsoever.
+

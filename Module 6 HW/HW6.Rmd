@@ -1,0 +1,284 @@
+---
+title: "Yichen Dong HW 6"
+author: "Yichen Dong"
+date: "October 10, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 2 Part 2
+
+```{r}
+set.seed(1234)
+summary = data.frame("mean_x_1" = numeric(),"var_x_1" = numeric(), "mean_x_2" = numeric(),"var_x_2" = numeric(), "corr" =numeric(), "rho" = numeric())
+counter = 1
+burn_in_2k = 1:2000
+for(rho in c(0,.1,.2,.3,.4,.5)){
+  itr = 10000
+  u_1 = 0
+  u_2 = 0
+  s_1 = 1
+  s_2 = 1
+  x_1 = NULL
+  x_2 = NULL
+  x_1[1] = 0
+  x_2[1] = 0
+  
+  for(i in 1:itr){
+    x_1[i+1] = rnorm(1,u_1+rho*s_1/s_2*(x_2[i]-u_2),sqrt(s_1^2*(1-rho^2)))
+    x_2[i+1] = rnorm(1,u_2+rho*s_2/s_1*(x_1[i+1]-u_1),sqrt(s_2^2*(1-rho^2)))
+  }
+  
+  plot(x_1,x_2)
+  title(paste("Plot for rho=", rho))
+  plot(x_1[-burn_in_2k],x_2[-burn_in_2k])
+  title(paste("Plot for rho=", rho, " and burn in of 2000"))
+  
+  summary[counter,1] = mean(x_1)
+  summary[counter,2]=var(x_1)
+  summary[counter,3]=mean(x_2)
+  summary[counter,4]=var(x_2)
+  summary[counter,5]=cor(x_1,x_2)
+  summary[counter,6]=rho
+  counter = counter + 1
+}
+summary
+```
+
+We can see that the Gibbs sampling appears to be an appropriate method for this problem. The mean and variance of x_1 and x_2 were both very close to their actual values for all values of rho, and the correlation is also very close to the given correlation of rho. 
+
+## Problem 3
+```{r}
+markov_10k = scan("Module 6 Data Sets/MCdata1.txt")
+markov_20k = scan("Module 6 Data Sets/MCdata2.txt")
+```
+
+```{r}
+plot(markov_10k,type = "l")
+title("Sample Path for 10k MC")
+```
+This does not look like it's wiggling vigorously about a single region
+```{r}
+plot(markov_20k,type = "l")
+title("Sample Path for 20k MC")
+```
+This looks like it's wiggling more around the same region, but I wouldn't exactly call it vigorous in some places.
+```{r}
+theta_10k = mean(markov_10k)
+theta_20k = mean(markov_20k)
+
+cusum_markov_10k = NULL
+for(i in 1:length(markov_10k)){
+  cusum_markov_10k[i] = sum(markov_10k[1:i] - theta_10k)
+}
+plot(cusum_markov_10k, type = "l")
+title("Cusum for 10k MC")
+```
+This isn't wiggly or only contain small excursions from 0. In fact, the excursion it makes is only negative until about the 5000 mark, then it's only positive!
+```{r}
+cusum_markov_20k = NULL
+for(i in 1:length(markov_20k)){
+  cusum_markov_20k[i] = sum(markov_20k[1:i] - theta_20k)
+}
+plot(cusum_markov_20k, type = "l")
+title("Cusum for 20k MC")
+```
+This looks like it's somewhat centered around 0 in the beginning, and has a sort of wiggly shape to it, but it starts losing its wiggliness after 10000 and has periods of going only down or up. It also starts getting larger deviations from 0. 
+```{r}
+autocorr_10k = NULL
+for(i in 1:4000){
+  R_i = NULL
+  C_i = 0
+  C_0 = 0
+  x_bar = mean(markov_10k)
+  n = length(markov_10k)
+  for(t in 1:(length(markov_10k)-i)){
+    C_i = C_i + 1/n*(markov_10k[t] - x_bar)*(markov_10k[t+i] - x_bar)
+  }
+  for(t in 1:length(markov_10k)){
+    C_0 = C_0 + 1/n*(markov_10k[t] - x_bar)^2
+  }
+  R_i = C_i/C_0
+  autocorr_10k[i] = R_i
+}
+plot(autocorr_10k,type = "l")
+title("Autocorrelation graph for 10k MC")
+```
+While the correlation is going down linearly, I'm not sure if the pace of this is quick enough to say that this chain has good mixing properties. I think we want to see the autocorrelation decrease rapidly initially. 
+```{r}
+autocorr_20k = NULL
+for(i in 1:10000){
+  R_i = NULL
+  C_i = 0
+  C_0 = 0
+  x_bar = mean(markov_20k)
+  n = length(markov_20k)
+  for(t in 1:(length(markov_20k)-i)){
+    C_i = C_i + 1/n*(markov_20k[t] - x_bar)*(markov_20k[t+i] - x_bar)
+  }
+  for(t in 1:length(markov_20k)){
+    C_0 = C_0 + 1/n*(markov_20k[t] - x_bar)^2
+  }
+  R_i = C_i/C_0
+  autocorr_20k[i] = R_i
+}
+
+plot(autocorr_20k,type = "l")
+title("Autocorrelation graph for 20k MC")
+```
+This autocorrelation graph looks pretty good initally, as there is a steep decline in correlation initally. However, it appears that around a lag of 1000 the correlation stops decreasing and starts going back up and then starts being correlated in the negative direction. It does seem to hang around 0, so I would say that the mixing properties are ok. 
+
+Based on these graphs, it seems that Markov Chain 1 has both decent mixing but very poor convergence. The correlation in the autocorrelation plot is going down linearly over time, but it doesn't have the sleep decline in the beginning. The sample path is wiggling vigorously, but not around a stable distribution. The cusum graph is not centered around 0 at all, and is not wiggly. Thus, convergence is pretty bad.
+
+Markov Chain 2 appears to have good mixing initially, but eventually the mixing becomes worse past the 10000th mark. This can be seen in the later stages of the sample path, where it stays at the same value for large periods of time. The convergence also seems good initially, but in the later stages diverges from 0 in the Cusum plot. 
+
+##Problem 4
+```{r}
+multi_markov_1 = scan("Module 6 Data Sets/MultiMC1.txt")
+multi_markov_2 = scan("Module 6 Data Sets/MultiMC2.txt")
+multi_markov_3 = scan("Module 6 Data Sets/MultiMC3.txt")
+multi_markov_4 = scan("Module 6 Data Sets/MultiMC4.txt")
+multi_markov_5 = scan("Module 6 Data Sets/MultiMC5.txt")
+multi_markov_6 = scan("Module 6 Data Sets/MultiMC6.txt")
+multi_markov_7 = scan("Module 6 Data Sets/MultiMC7.txt")
+multi_markov_all = cbind(multi_markov_1,multi_markov_2,multi_markov_3,multi_markov_4,multi_markov_5,multi_markov_6,multi_markov_7)
+```
+
+```{r}
+##Entire chain with D=0 and L=1000
+D=0
+L=1000
+J=7
+x_bar_j = NULL
+for(i in 1:J){
+  x_bar_j[i]=sum(multi_markov_all[(D+1):(D+L),i])/L
+}
+
+x_bar_dot = mean(x_bar_j)
+B = L/(J-1)*sum((x_bar_j-x_bar_dot)^2)
+s_j_squared = NULL
+for(i in 1:J){
+  s_j_squared[i] = 1/(L-1) * sum((multi_markov_all[(D+1):(D+L),i] - x_bar_j[i])^2)
+}
+W = mean(s_j_squared)
+R = (((L-1)/L)*W+(1/L)*B)/W
+sqrt_R = sqrt(R)
+paste("Sqrt_R for D =",D,"and L =",L,"is", round(sqrt_R,4), ",B is", round(B,4), ",W is",round(W,4))
+```
+
+```{r}
+##Entire chain with D=500 and L=500
+D=500
+L=500
+J=7
+x_bar_j = NULL
+for(i in 1:J){
+  x_bar_j[i]=sum(multi_markov_all[(D+1):(D+L),i])/L
+}
+
+x_bar_dot = mean(x_bar_j)
+B = L/(J-1)*sum((x_bar_j-x_bar_dot)^2)
+s_j_squared = NULL
+for(i in 1:J){
+  s_j_squared[i] = 1/(L-1) * sum((multi_markov_all[(D+1):(D+L),i] - x_bar_j[i])^2)
+}
+W = mean(s_j_squared)
+R = (((L-1)/L)*W+(1/L)*B)/W
+sqrt_R = sqrt(R)
+paste("Sqrt_R for D =",D,"and L =",L,"is", round(sqrt_R,4), ",B is", round(B,4), ",W is",round(W,4))
+```
+
+```{r}
+##First 500 elements with D=0 and L=500
+D=0
+L=500
+J=7
+x_bar_j = NULL
+for(i in 1:J){
+  x_bar_j[i]=sum(multi_markov_all[(D+1):(D+L),i])/L
+}
+
+x_bar_dot = mean(x_bar_j)
+B = L/(J-1)*sum((x_bar_j-x_bar_dot)^2)
+s_j_squared = NULL
+for(i in 1:J){
+  s_j_squared[i] = 1/(L-1) * sum((multi_markov_all[(D+1):(D+L),i] - x_bar_j[i])^2)
+}
+W = mean(s_j_squared)
+R = (((L-1)/L)*W+(1/L)*B)/W
+sqrt_R = sqrt(R)
+paste("Sqrt_R for D =",D,"and L =",L,"is", round(sqrt_R,4), ",B is", round(B,4), ",W is",round(W,4))
+```
+
+```{r}
+##First 500 elements with D=250 and L=250
+D=250
+L=250
+J=7
+x_bar_j = NULL
+for(i in 1:J){
+  x_bar_j[i]=sum(multi_markov_all[(D+1):(D+L),i])/L
+}
+
+x_bar_dot = mean(x_bar_j)
+B = L/(J-1)*sum((x_bar_j-x_bar_dot)^2)
+s_j_squared = NULL
+for(i in 1:J){
+  s_j_squared[i] = 1/(L-1) * sum((multi_markov_all[(D+1):(D+L),i] - x_bar_j[i])^2)
+}
+W = mean(s_j_squared)
+R = (((L-1)/L)*W+(1/L)*B)/W
+sqrt_R = sqrt(R)
+paste("Sqrt_R for D =",D,"and L =",L,"is", round(sqrt_R,4), ",B is", round(B,4), ",W is",round(W,4))
+```
+
+```{r}
+##First 50 elements with D=0 and L=50
+D=0
+L=50
+J=7
+x_bar_j = NULL
+for(i in 1:J){
+  x_bar_j[i]=sum(multi_markov_all[(D+1):(D+L),i])/L
+}
+
+x_bar_dot = mean(x_bar_j)
+B = L/(J-1)*sum((x_bar_j-x_bar_dot)^2)
+s_j_squared = NULL
+for(i in 1:J){
+  s_j_squared[i] = 1/(L-1) * sum((multi_markov_all[(D+1):(D+L),i] - x_bar_j[i])^2)
+}
+W = mean(s_j_squared)
+R = (((L-1)/L)*W+(1/L)*B)/W
+sqrt_R = sqrt(R)
+paste("Sqrt_R for D =",D,"and L =",L,"is", round(sqrt_R,4), ",B is", round(B,4), ",W is",round(W,4))
+```
+
+```{r}
+##First 50 elements with D=25 and L=25
+D=25
+L=25
+J=7
+x_bar_j = NULL
+for(i in 1:J){
+  x_bar_j[i]=sum(multi_markov_all[(D+1):(D+L),i])/L
+}
+
+x_bar_dot = mean(x_bar_j)
+B = L/(J-1)*sum((x_bar_j-x_bar_dot)^2)
+s_j_squared = NULL
+for(i in 1:J){
+  s_j_squared[i] = 1/(L-1) * sum((multi_markov_all[(D+1):(D+L),i] - x_bar_j[i])^2)
+}
+W = mean(s_j_squared)
+R = (((L-1)/L)*W+(1/L)*B)/W
+sqrt_R = sqrt(R)
+paste("Sqrt_R for D =",D,"and L =",L,"is", round(sqrt_R,4), ",B is", round(B,4), ",W is",round(W,4))
+```
+
+It seemed that for the most part, the sqrt(R) was close to 1, except for the last one with only 25 elements. It seems that 50 elements might be too small. However, it appears that the sqrt(r) is practically the same for L=500 and L=1000 when D=0. It also seems that between chain variance is the smallest for D=250 and L=250. 
