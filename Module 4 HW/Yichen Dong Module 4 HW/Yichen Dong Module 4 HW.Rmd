@@ -1,0 +1,138 @@
+---
+title: "Module 4 HW"
+author: "Yichen Dong"
+date: "September 27, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
+## Problem 1
+
+```{r}
+set.seed(121)
+x = runif(5000,0,1)
+montycarlo = data.frame(x)
+montycarlo = montycarlo %>% 
+  mutate(g_x = 4*sqrt(1-x^2))
+
+I_hat = with(montycarlo, 1/length(montycarlo$x)*sum(g_x))
+I_hat
+```
+
+If we solved this analytically, we would get pi, and our approximation is very close to the real answer. 
+
+## Problem 2
+### Inverse CDF
+Below we will try to use the Inverse CDF to generate 1000 data points from f(x). We can see that the distribution looks very similar to the triangle pdf that we would expect. 
+```{r}
+set.seed(121)
+x_1 = runif(1000,0,1)
+inverse_cdf = data.frame(x_1)
+inverse_cdf = inverse_cdf %>%
+  mutate(xval = ifelse(x_1<=.5, sqrt(x_1/2),-(-4+sqrt(-8*x_1+8))/4))
+hist(inverse_cdf$xval, breaks = 10)
+```
+
+### Rejection sampling
+Suppose we take a g(x) to be a uniform distribution at y=1 from 0 to 1. We can easily see that the cdf from 0 to 1 is 1. In order for this to encompass our f(x), we need to divide by alpha = .5, so that y=2, which is that max of our original f(x). This will be our e(x).
+```{r}
+x_star = c()
+seed = 1
+while(length(x_star)<1000){
+  set.seed(seed)
+  x_s= runif(1,0,1)
+  u = runif(1,0,1)
+  f_x_s = ifelse(x_s<=.5,4*x_s,4-4*x_s)
+  if(u<f_x_s/2){
+    x_star = c(x_star,x_s)
+  }
+  seed = seed + 1
+}
+hist(x_star)
+```
+
+### Monte Carlo for E(X^2)
+Here I used the values from the inverse CDF method. The value I got analytically was .2917, which is very close to the answer we get here.
+```{r}
+sum(inverse_cdf$xval^2)/length(inverse_cdf$xval)
+```
+
+## Problem 3
+Here we try to see what alpha value would give us an envelope that could encapture all of f(x). We see that we might be violating one of the rules of rejection sampling, which is that the envelope does not result in too many rejections. We can see that an alpha of .3 applied to the N(1,2) curve would give us an envelope at least around -5 to 5. However, we can see that the enveloped is very skewed, resulting in a lot of rejections at x>0 and much fewer at x<0. 
+```{r}
+x_2 <- seq(-7, 7, length=1000)
+y = 1/sqrt(2*pi*1)*exp(-(x_2-0)^2/(2*1))
+z = 1/sqrt(2*pi*2)*exp(-(x_2-1)^2/(2*2))/.3
+plot(x_2, y, type="l", lwd=1,ylim = c(0,1))
+lines(x_2,z, col= "blue")
+```
+
+Here we will run our rejection sampling and calculate our statistics.
+```{r}
+seed = 50
+x_norm = c()
+while(length(x_norm) < 10000){
+  set.seed(seed)
+  x_n = runif(1,-10,10)
+  u = runif(1,0,1)
+  f_x_n = 1/sqrt(2*pi*1)*exp(-(x_n-0)^2/(2*1))
+  g_x_n = 1/sqrt(2*pi*2)*exp(-(x_n-1)^2/(2*2))/.3
+  if(u<=f_x_n/g_x_n){
+    x_norm = c(x_norm,x_n)
+  }
+  seed = seed + 1
+}
+hist(x_norm)
+mean(x_norm)
+var(x_norm)
+```
+
+Wait, that doesn't seem right. What could be happening here? My theory is that the bias of the envelope is causing a lot more rejections than it should in the right side of the graph. Indeed, if we change just the variance of g_x to 9, we see a much better result:
+
+```{r}
+seed = 50
+x_norm = c()
+while(length(x_norm) < 10000){
+  set.seed(seed)
+  x_n = runif(1,-10,10)
+  u = runif(1,0,1)
+  f_x_n = 1/sqrt(2*pi*1)*exp(-(x_n-0)^2/(2*1))
+  g_x_n = 1/sqrt(2*pi*9)*exp(-(x_n-1)^2/(2*9))/.3
+  if(u<=f_x_n/g_x_n){
+    x_norm = c(x_norm,x_n)
+  }
+  seed = seed + 1
+}
+hist(x_norm)
+mean(x_norm)
+var(x_norm)
+```
+
+This is because the envelope has a much less chance of rejecting in just one region.
+```{r}
+x_2 <- seq(-7, 7, length=1000)
+y = 1/sqrt(2*pi*1)*exp(-(x_2-0)^2/(2*1))
+z = 1/sqrt(2*pi*9)*exp(-(x_2-1)^2/(2*9))/.3
+sq = 1/sqrt(2*pi*.81)*exp(-(x_2-0)^2/(2*.81))/1.2
+plot(x_2, y, type="l", lwd=1,ylim = c(0,1))
+lines(x_2,z, col= "blue")
+```
+### Squeezed rejection
+The advantage to using this kind of function is that it would simplify calculations by a lot, especially if f(x) was hard to calculate. In this case, if a function falls under the squeezing function, we know that it also falls under f(x) and no additional calculation is needed for f(x). A squeezing function that lies close to f(x), but is still below it, would mean that a large number of values would have a simplified calculation. 
+```{r}
+x_2 <- seq(-7, 7, length=1000)
+y = 1/sqrt(2*pi*1)*exp(-(x_2-0)^2/(2*1))
+z = 1/sqrt(2*pi*9)*exp(-(x_2-1)^2/(2*9))/.3
+sq = 1/sqrt(2*pi*.81)*exp(-(x_2-0)^2/(2*.81))/1.2
+plot(x_2, y, type="l", lwd=1,ylim = c(0,1))
+lines(x_2,z, col= "blue")
+lines(x_2,sq,col = "red")
+```
+So one option for a squeezing function is to have another normal function with a smaller variance, with a alpha>1 applied to it so that it is always below f(x). Of course, the amount of computational time saved in this example is probably not much.
