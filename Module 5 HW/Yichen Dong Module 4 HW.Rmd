@@ -1,0 +1,164 @@
+---
+title: "Yichen Dong Module 5 HW"
+author: "Yichen Dong"
+date: "October 4, 2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+## Problem 1
+
+## Problem 2
+```{r}
+set.seed(11123)
+instrumental = as.data.frame(rnorm(1000,mean = 1,sd = sqrt(2)))
+colnames(instrumental) = "x_i"
+instrumental = instrumental %>%
+  mutate(w_star = dnorm(x_i,mean=0,sd = 1)/dnorm(x_i,mean=1,sd=sqrt(2)))%>%
+  mutate(w_star_weighted = w_star/sum(w_star)) %>%
+  mutate(h_x_weighted_standardized = x_i*w_star_weighted) %>%
+  mutate(h_x_weighted_unstandardized = x_i*w_star)
+```
+
+Above we are just setting up the dataframe. Although the problem didn't ask for it, I wanted to look at the standardized weights as well. 
+```{r}
+sum(instrumental$h_x_weighted_standardized)
+mean(instrumental$h_x_weighted_unstandardized)
+```
+
+We can see that there is some difference between the sum of the standardized samples and the mean of the unstandardized ones, but they are pretty close. They are also very close to 0. 
+```{r}
+var(instrumental$h_x_weighted_unstandardized)/length(instrumental$h_x_weighted_unstandardized)
+```
+
+I am calculating the variance according to the formula 1/n * var(h(x)w(x)).This is a lot less than the variance of N(0,1), which is 1. 
+
+```{r}
+hist(instrumental$h_x_weighted_unstandardized)
+hist(instrumental$h_x_weighted_standardized)
+hist(rnorm(1000,0,1))
+```
+
+We can see that the standardized and unstandardized histograms look similar. However, they do not look at all like the histogram of the N(0,1) distribution. 
+
+## Problem 3
+
+## Problem 4
+```{r}
+mixture.dat = read.table("/Users/Yichen/Documents/JHU/Computational Statistics/Data/mixture.dat",header=TRUE)
+y = mixture.dat$y
+n = 10000
+```
+
+Doing some setup. I read in the dataset that the book provided, since I was following along with the code that came with the book and that's what they did.
+
+```{r}
+norm_zero = NULL
+f = function(x){prod(x*dnorm(y,7,0.5) + (1-x)*dnorm(y,10,0.5))}
+R = function(x_t,x_star){f(x_star)*g(x_t,x_t)/(f(x_t)*g(x_star,x_t))}
+g = function(x,x_t){dnorm(x,x_t,.01)}
+
+norm_zero[1] = 0
+for(i in 1:n){
+  x_t = norm_zero[i]
+  x_star = rnorm(1,x_t,.01)
+  r = R(x_t,x_star)
+  if(r>=1){
+    norm_zero[i+1] = x_star
+  } else{
+    u = runif(1,0,1)
+    if(u<r){
+      norm_zero[i+1] = x_star
+    } else{
+      norm_zero[i+1] = x_t
+    }
+  }
+}
+plot(norm_zero[200:n+1], type = "l")
+title("Sample path for N(x_t,.01^2) Proposal Dist. with starting value 0")
+hist(norm_zero[200:n+1])
+```
+
+```{r}
+norm_seven = NULL
+norm_seven[1] = 7
+for(i in 1:n){
+  x_t = norm_seven[i]
+  x_star = rnorm(1,x_t,.01)
+  r = R(x_t,x_star)
+  if(r>=1){
+    norm_seven[i+1] = x_star
+  } else{
+    u = runif(1,0,1)
+    if(u<r){
+      norm_seven[i+1] = x_star
+    } else{
+      norm_seven[i+1] = x_t
+    }
+  }
+}
+plot(norm_seven[200:n+1], type = "l")
+title("Sample path for N(x_t,.01^2) Proposal Dist. with starting value 7")
+hist(norm_seven[200:n+1])
+```
+
+```{r}
+norm_fifteen = NULL
+norm_fifteen[1] = 15
+for(i in 1:n){
+  x_t = norm_fifteen[i]
+  x_star = rnorm(1,x_t,.01)
+  r = R(x_t,x_star)
+  if(r>=1){
+    norm_fifteen[i+1] = x_star
+  } else{
+    u = runif(1,0,1)
+    if(u<r){
+      norm_fifteen[i+1] = x_star
+    } else{
+      norm_fifteen[i+1] = x_t
+    }
+  }
+}
+plot(norm_fifteen[200:n+1], type = "l")
+title("Sample path for N(x_t,.01^2) Proposal Dist. with starting value 15")
+hist(norm_fifteen[200:n+1])
+```
+
+We can see from these graphs that the histogram that gives us the best bimodal distribution is when the starting value is 7. If only one of these were available, I would say that the distribution does not seem very stationary. However, with all three distributions, it seems that this is very sensitive to the starting value. 
+
+### Problem 4 Part 2
+
+```{r}
+set.seed(11116)
+unif_values = NULL
+n=10000
+f = function(x){prod(x*dnorm(y,7,0.5) + (1-x)*dnorm(y,10,0.5))}
+R_unif = function(x_t,x_star){f(x_star)*g_unif(x_t)/(f(x_t)*g_unif(x_star))}
+g_unif = function(x){dunif(x,0,20)}
+unif_values[1] = 7
+for(i in 1:n){
+  x_t = unif_values[i]
+  x_star = runif(1,0,20)
+  r = R_unif(x_t,x_star)
+  if(r>=1){
+    unif_values[i+1] = x_star
+  } else{
+    u = runif(1,0,1)
+    if(u<r){
+      unif_values[i+1] = x_star
+    } else{
+      unif_values[i+1] = x_t
+    }
+  }
+}
+plot(unif_values[200:n+1],type="l", ylim = c(6,22))
+title("Sample path for U(0,20) Proposal Dist. with starting value 7")
+hist(unif_values[200:n+1])
+```
+
+I couldn't really get a double hump, even after many tries. The sample walk also looks jagged, and not the up and down we see from the Uniform distribution.
